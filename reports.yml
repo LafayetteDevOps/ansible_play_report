@@ -1,0 +1,68 @@
+---
+
+- name: Generate a csv report for collecting kernel and host information.
+  hosts: all
+  gather_facts: true
+
+  vars:
+    csv_path: /tmp 
+    csv_name: report.csv
+    headers: Hostname, OS, Kernel Version, Last Reboot
+    relay_host: <relay_host_fqdn>
+    mailing_list:
+      - <email_recipient>
+      - <email_recipient>
+  
+  tasks:
+  - name: Collect last reboot fact
+    ansible.builtin.shell:
+      cmd: last reboot | grep -m1 "" | awk '{ print $1, $6, $7, $8 }'
+    register: rebooted
+
+  - name: Creating and adding content to the csv
+    block:
+      - name: Create CSV headers
+        ansible.builtin.lineinfile:
+          line: "{{ headers }}"
+          create: true
+          path: "{{ csv_path }}/{{csv_name}}"
+          state: present
+        register: csv
+
+      - name: debug csv
+        ansible.builtin.debug:
+          var: csv
+
+      - name: Adding content to CSV
+        ansible.builtin.lineinfile:
+          path: "{{ csv_path }}/{{csv_name}}"
+          line: "{{ inventory_hostname }},{{ ansible_distribution }},{{ ansible_kernel }},{{ rebooted.stdout }}"
+          create: true
+          state: present
+    delegate_to: localhost
+    run_once: true
+
+#  - name: Read in CSV to variable
+#    community.general.read_csv:
+#      path: "{{ csv_path }}/{{csv_name}}"
+#    register: csv_file
+#    delegate_to: localhost
+#    run_once: true
+  
+#  - name: debug csv_file
+#    ansible.builtin.debug:
+#      var: csv_file
+#    run_once: true
+
+  - name: Email | csv file
+    community.general.mail:
+      host: "{{ relay_host }}"
+      port: 25
+      from: 'ansible_play_reports@<host_fqdn>'
+      subject: "Current cmmc_reports"
+      to: "{{ mailing_list }}"
+      attach: "{{ csv_path }}/{{csv_name}}"
+    delegate_to: localhost
+    run_once: true
+
+...
