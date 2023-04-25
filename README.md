@@ -1,5 +1,5 @@
 # ansible_play_report
-An Ansbile play to be used for the automatic generation and emailing through a relay host of reports.
+An Ansbile play for the automatic generation of reports and emailing through a relay host.
 
 Requirements:
 -----
